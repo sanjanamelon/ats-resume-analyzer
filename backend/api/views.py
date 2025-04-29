@@ -96,7 +96,7 @@ class HRViewSet(viewsets.ViewSet):
     @csrf_exempt
     def upload_multiple_resumes(self, request):
         """Upload multiple resumes and get ranked analysis"""
-        files = request.FILES.getlist('resumes')  # Changed from 'files' to 'resumes'
+        files = request.FILES.getlist('resumes')
         job_description = request.data.get('job_description', '')
         
         if not files:
@@ -105,45 +105,51 @@ class HRViewSet(viewsets.ViewSet):
         
         results = []
         for file in files:
-            resume = Resume.objects.create(
-                file=file
-            )
-            resume_text = parse_resume(resume.file.path)
-            
-            analysis_result = analyze_resume(resume_text, job_description)
-            
-            analysis = AnalysisResult.objects.create(
-                resume=resume,
-                keywords_matched=analysis_result['keyword_match']['matched_keywords'],
-                score=analysis_result['keyword_match']['score'] / 100,
-                feedback=json.dumps(analysis_result)
-            )
-            
-            results.append({
-                'id': resume.id,
-                'file': resume.file.url,
-                'analysis': analysis_result,
-                'analysis_id': analysis.id
-            })
+            try:
+                resume = Resume.objects.create(file=file)
+                resume_text = parse_resume(resume.file.path)
+                analysis_result = analyze_resume(resume_text, job_description)
+                
+                analysis = AnalysisResult.objects.create(
+                    resume=resume,
+                    keywords_matched=analysis_result['keyword_match']['matched_keywords'],
+                    score=analysis_result['keyword_match']['score'] / 100,
+                    feedback=json.dumps(analysis_result)
+                )
+                
+                results.append({
+                    'id': resume.id,
+                    'file': resume.file.url,
+                    'analysis': analysis_result,
+                    'analysis_id': analysis.id
+                })
+            except Exception as e:
+                # If there's an error processing one resume, continue with others
+                print(f"Error processing resume {file.name}: {str(e)}")
+                continue
+        
+        if not results:
+            return Response({'error': 'Failed to process any resumes'}, 
+                          status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         # Sort results by score in descending order
-        results.sort(key=lambda x: x['analysis']['keyword_match']['score'], reverse=True)
+        results.sort(key=lambda x: x['analysis']['ats_score']['score'], reverse=True)
         
-        response = Response({
+        response_data = {
             'results': [
                 {
-                    'ats_score': int(result['analysis']['keyword_match']['score']),
-                    'keyword_match': int(result['analysis']['keyword_match']['score']),
-                    'skill_match': int(result['analysis']['skill_match']['score'] if 'skill_match' in result['analysis'] else 0),
-                    'suggestions': result['analysis']['feedback']['suggestions'] if 'suggestions' in result['analysis']['feedback'] else [],
+                    'ats_score': result['analysis']['ats_score']['score'],
+                    'keyword_match': result['analysis']['keyword_match']['score'],
+                    'skill_match': result['analysis'].get('skill_match', {}).get('score', 0),
+                    'suggestions': result['analysis'].get('suggestions', []),
                     'file': result['file']
                 }
                 for result in results
             ],
             'total_count': len(results)
-        }, status=status.HTTP_201_CREATED)
+        }
         
-        # Add CORS headers
+        response = Response(response_data, status=status.HTTP_201_CREATED)
         response['Access-Control-Allow-Origin'] = '*'
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-Frontend-Request'

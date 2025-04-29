@@ -1,6 +1,7 @@
 import { Tab } from '@headlessui/react';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import api from '../config/api';
 
 const AnalysisFeedback = ({ analysisId }) => {
   const [analysis, setAnalysis] = useState(null);
@@ -13,17 +14,8 @@ const AnalysisFeedback = ({ analysisId }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`http://localhost:8000/api/resumes/${analysisId}/analysis/`, {
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to fetch analysis');
-      }
-      
-      const data = await response.json();
-      setAnalysis(data);
+      const response = await api.get(`resumes/${analysisId}/analysis/`);
+      setAnalysis(response.data);
     } catch (error) {
       console.error('Error fetching analysis:', error);
       setError(error.message || 'Failed to fetch analysis results');
