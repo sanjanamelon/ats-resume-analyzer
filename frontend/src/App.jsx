@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, UNSAFE_DataRouterContext } from 'react-router-dom';
 import { Tab } from '@headlessui/react';
 import { motion } from 'framer-motion';
 
@@ -22,7 +22,7 @@ function App() {
   ];
 
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <div className={`min-h-screen ${isDark ? 'dark' : ''} bg-background`}>
         <nav className="bg-surface shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

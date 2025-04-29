@@ -78,7 +78,7 @@ const ResumeUpload = ({ onAnalysisComplete }) => {
       formData.append('file', selectedFile)
       formData.append('job_description', jobDescription)
 
-      const response = await api.post('/api/resumes/upload/', formData, {
+      const response = await api.post('resumes/upload/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
